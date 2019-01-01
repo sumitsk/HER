@@ -110,6 +110,9 @@ class Policy:
             self.o_stats.update(o)
             self.g_stats.update(g)
 
+            self.o_stats.recompute_stats()
+            self.g_stats.recompute_stats()
+
     def train(self):
         batch_size = 256
         batch = self.buffer.sample(batch_size)
@@ -160,8 +163,8 @@ class Policy:
 
     def logs(self):
         logs = []
-        logs += [('stats_o/mean', np.mean(self.o_stats.rms.mean))]
-        logs += [('stats_o/std', np.mean(self.o_stats.rms.var**0.5))]
-        logs += [('stats_g/mean', np.mean(self.g_stats.rms.mean))]
-        logs += [('stats_g/std', np.mean(self.g_stats.rms.var**0.5))]
+        logs += [('stats_o/mean', np.mean(self.o_stats.mean))]
+        logs += [('stats_o/std', np.mean(self.o_stats.std))]
+        logs += [('stats_g/mean', np.mean(self.g_stats.mean))]
+        logs += [('stats_g/std', np.mean(self.g_stats.std))]
         return logs

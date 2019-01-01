@@ -58,6 +58,7 @@ if __name__ == '__main__':
             evaluator.generate_rollouts()
 
         # log stuffs
+        ipdb.set_trace()
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, val)
