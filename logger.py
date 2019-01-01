@@ -354,9 +354,7 @@ def configure(dir=None, format_strs=None):
         dir = osp.join(tempfile.gettempdir(),
             datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
     assert isinstance(dir, str)
-    # os.makedirs(dir, exist_ok=True)
-    # safely create a new directory without overwriting the existing one if any
-    make_dir(dir)
+    os.makedirs(dir, exist_ok=True)
 
     log_suffix = ''
     rank = 0
@@ -378,19 +376,6 @@ def configure(dir=None, format_strs=None):
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
-
-def make_dir(dirc):
-    import warnings
-    if os.path.exists(dirc):
-        warnings.warn('SAVE DIRECTORY ALREADY EXISTS!')
-        ch = input('Press c (rename the existing directory and continue) or \nPress s (stop): ')
-        if ch == 's':
-            sys.exit(0)
-        elif ch == 'c':
-            os.rename(dirc, dirc+'_old')
-        else:
-            raise NotImplementedError('Unknown key!')
-    os.makedirs(dirc)
 
 def _configure_default_logger():
     format_strs = None
@@ -500,7 +485,7 @@ def read_tb(path):
     return pandas.DataFrame(data, columns=tags)
 
 # configure the default logger on import
-_configure_default_logger()
+# _configure_default_logger()
 
 if __name__ == "__main__":
     _demo()

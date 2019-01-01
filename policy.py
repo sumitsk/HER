@@ -1,10 +1,10 @@
+import torch
+import numpy as np
 from model import Actor, Critic
 from replay_buffer import ReplayBuffer
 from her import HER_sampler
 from normalizer import Normalizer
 import utils
-import torch
-import numpy as np
 import ipdb
 
 
@@ -14,15 +14,14 @@ class Policy:
         env = params['cached_env']
         self.T = env._max_episode_steps
         
-        self.max_u = 1.0 
+        self.max_u = 1.0
+        self.action_l2 = 1.0 
         self.clip_obs = 200.0
         self.gamma = 1 - 1.0/self.T
         self.tau = 0.05
-        self.max_grad_norm = 0.5
         self.clip_pos_returns = True
         self.clip_return = self.T
         self.train_batch_size = 256
-        # TODO: learning rate scheduler?? 
         
         self.device = params['device']
         buffer_shapes = utils.get_buffer_shapes(env, self.T)
@@ -44,7 +43,7 @@ class Policy:
 
         self.optim_actor = torch.optim.Adam(self.main_actor.parameters(), params['actor_lr'])
         self.optim_critic = torch.optim.Adam(self.main_critic.parameters(), params['critic_lr'])
-        self.critic_loss = torch.nn.SmoothL1Loss()
+        self.critic_loss = torch.nn.MSELoss()
         
         def reward_fun(ag_2, g, info):
             return env.compute_reward(achieved_goal=ag_2, desired_goal=g, info=info)
@@ -69,7 +68,6 @@ class Policy:
         
         # eps-greedy
         u += np.random.binomial(1, random_eps, u.shape[0]).reshape(-1, 1) * (self._random_action(u.shape[0]) - u)
-        # TODO: where is frame skip ?
         return u
 
     def _random_action(self, n):
@@ -104,8 +102,6 @@ class Policy:
             transitions = self.her_sampler.sample(episode_batch, num_normalizing_transitions)
 
             o, g = self.preprocess_og(transitions['o'], transitions['ag'], transitions['g'])
-    
-            # No need to preprocess the o_2 and g_2 since this is only used for stats
             self.o_stats.update(o)
             self.g_stats.update(g)
 
@@ -142,21 +138,20 @@ class Policy:
         # with torch.no_grad():
         #     td_error = target_q - q
         cr_loss = self.critic_loss(main_q, target_q)
-        # TODO: gradient clipping
         cr_loss.backward()
+        # TODO: gradient clipping
         # torch.nn.utils.clip_grad_norm_(self.main_critic.parameters(), self.max_grad_norm)
         self.optim_critic.step()
 
         self.optim_actor.zero_grad()
         pred_act = self.main_actor(obs)
-        policy_loss = -self.main_critic(obs, pred_act)
-        policy_loss = policy_loss.mean()
+        policy_loss = -self.main_critic(obs, pred_act).mean()
+        policy_loss += self.action_l2 * ((pred_act/self.max_u)**2).mean()
 
         # torch.nn.utils.clip_grad_norm_(self.main_actor.parameters(), self.max_grad_norm)
         policy_loss.backward()
         self.optim_actor.step()
 
-        # self.update_target_net()
         return cr_loss.item(), policy_loss.item()
 
     def logs(self):
@@ -178,4 +173,12 @@ class Policy:
         self.main_critic.eval()
         self.target_actor.eval()
         self.target_critic.eval()
-        
+
+    def save(self, epoch, filename):
+        checkpoint = {'actor': self.main_actor.state_dict(),
+                      'critic': self.main_critic.state_dict(),
+                      'optim_actor': self.optim_actor.state_dict(),
+                      'optim_critic': self.optim_critic.state_dict(),
+                      'epoch': epoch
+                      }
+        torch.save(checkpoint, filename)

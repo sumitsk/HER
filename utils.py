@@ -1,14 +1,13 @@
 import os
 import shutil
 import sys
-
 import gym_vecenv
 import gym
 import ipdb
 
 
-def safe_log(log_dir):
-    # raise warning if save directory is already 
+def check_logdir(log_dir):
+    # raise warning if log directory already exists 
     if os.path.exists(log_dir):
         print('\nLog directory exists already! Enter')
         ch = input('c (rename the existing directory with _old and continue)\ns (stop)!\ndel (delete existing dir): ')
@@ -70,16 +69,3 @@ def soft_update(target, source, tau):
 def hard_update(target, source):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
-
-
-def copy_stats(target, source):
-    target.o_stats.rms.mean = source.o_stats.rms.mean
-    target.o_stats.rms.var = source.o_stats.rms.var
-    target.g_stats.rms.mean = source.g_stats.rms.mean
-    target.g_stats.rms.var = source.g_stats.rms.var
-
-
-def copy_policies(target, source):
-    target.main_actor.load_state_dict(source.main_actor.state_dict())
-    target.main_critic.load_state_dict(source.main_critic.state_dict())
-

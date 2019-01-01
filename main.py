@@ -3,7 +3,6 @@ import os
 import numpy as np
 import datetime
 from copy import deepcopy
-
 import utils
 from arguments import get_args
 from learner import Learner
@@ -17,6 +16,7 @@ if __name__ == '__main__':
     args = get_args()
     logid = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f") if args.logid is None else str(args.logid)
     logdir = os.path.join('save', logid)
+    utils.check_logdir(logdir)
     logger.configure(logdir)
     configure(logdir)
 
@@ -42,6 +42,11 @@ if __name__ == '__main__':
     evaluator = Learner(policy, evaluator_params)
 
     n_test_rollouts = 10
+    best_success_rate = -1
+    latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pt')
+    best_policy_path = os.path.join(logger.get_dir(), 'policy_best.pt')
+    periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pt')
+
     for epoch in range(params['n_epochs']):
         trainer.clear_history()
         policy.set_train_mode()
@@ -77,4 +82,14 @@ if __name__ == '__main__':
         log_value('train_success_rate', train_stats['success_rate'], epoch)
         log_value('test_success_rate', test_stats['success_rate'], epoch)
 
+        success_rate = test_stats['success_rate']
+        if success_rate >= best_success_rate:
+            best_success_rate = success_rate
+            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, best_policy_path))
+            policy.save(epoch, best_policy_path)
+            policy.save(epoch, latest_policy_path)
+        if epoch % params['save_every'] == 0:
+            policy_path = periodic_policy_path.format(epoch)
+            logger.info('Saving periodic policy to {} ...'.format(policy_path))
+            policy.save(epoch, policy_path)
 

@@ -19,6 +19,7 @@ def get_args():
 
     # logging
     parser.add_argument('--logid', default=None, type=int, help='unique id for each run (default: date_time)')
+    parser.add_argument('--save-every', default=5, type=int, help='save policy after every ... epochs')
     
     # Miscellaneous
     parser.add_argument('--test', action='store_true')
