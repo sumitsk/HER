@@ -59,3 +59,20 @@ class Normalizer:
     def normalize(self, obs):
         norm_obs = np.clip((obs - self.mean) / self.std, -self.clipob, self.clipob)
         return norm_obs
+
+
+class IdentityNormalizer:
+    def __init__(self, size, std=1.0):
+        self.mean = np.zeros(size, np.float32)
+        self.std = std*np.ones(size, np.float32)
+
+    def update(self, v):
+        pass
+
+    def recompute_stats(self):
+        pass
+
+    def normalize(self, x):
+        return (x-self.mean)/self.std
+
+        

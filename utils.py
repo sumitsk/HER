@@ -27,7 +27,7 @@ def make_robotics_env(env_name, seed):
     def _thunk():
         env = gym.make(env_name)
         # flatten for subprocvec support
-        env = gym.wrappers.FlattenDictWrapper(env, ['observation', 'desired_goal'])
+        env = gym.wrappers.FlattenDictWrapper(env, ['observation', 'achieved_goal', 'desired_goal'])
         env.seed(seed)
         return env
     return _thunk

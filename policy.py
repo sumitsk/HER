@@ -17,8 +17,11 @@ class Policy:
         self.max_u = 1.0 
         self.clip_obs = 200.0
         self.gamma = 1 - 1.0/self.T
-        self.tau = 0.001
+        self.tau = 0.05
         self.max_grad_norm = 0.5
+        self.clip_pos_returns = True
+        self.clip_return = self.T
+        self.train_batch_size = 256
         # TODO: learning rate scheduler?? 
         
         self.device = params['device']
@@ -50,8 +53,8 @@ class Policy:
         buffer_size = int(1e6)
         self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.her_sampler)
         
-    def get_actions(self, obs, goal, noise_eps=0, random_eps=0):
-        o, g = self.preprocess_og(obs, goal)
+    def get_actions(self, obs, ag, goal, noise_eps=0, random_eps=0):
+        o, g = self.preprocess_og(obs, ag, goal)
         o = self.o_stats.normalize(o)
         g = self.g_stats.normalize(g)
         inp = self.append_goal(o, g)
@@ -65,7 +68,6 @@ class Policy:
         u = np.clip(u, -self.max_u, self.max_u)
         
         # eps-greedy
-        # TODO: if using this, need to reduce eps somewhere ? 
         u += np.random.binomial(1, random_eps, u.shape[0]).reshape(-1, 1) * (self._random_action(u.shape[0]) - u)
         # TODO: where is frame skip ?
         return u
@@ -77,15 +79,12 @@ class Policy:
         return np.concatenate([obs, goal], -1)
 
     def split_obs(self, obs):
-        return np.split(obs, [obs.shape[-1]-self.goal_dim], -1)
+        return np.split(obs, [self.obs_dim, self.obs_dim+self.goal_dim], -1)
 
-    def get_achieved_goal(self, obs):
-        return self.split_obs(obs)[-1]
-
-    def preprocess_og(self, obs, goal):
+    def preprocess_og(self, obs, ag, goal):
         # subtract achieved goal from desired goal
         if self.relative_goal:
-            goal -= self.get_achieved_goal(obs)
+            goal = goal - ag
         obs = np.clip(obs, -self.clip_obs, self.clip_obs)
         goal = np.clip(goal, -self.clip_obs, self.clip_obs)
         return obs, goal
@@ -104,9 +103,9 @@ class Policy:
             num_normalizing_transitions = episode_batch['u'].shape[0]*episode_batch['u'].shape[1] 
             transitions = self.her_sampler.sample(episode_batch, num_normalizing_transitions)
 
-            o, g = self.preprocess_og(transitions['o'], transitions['g'])
+            o, g = self.preprocess_og(transitions['o'], transitions['ag'], transitions['g'])
+    
             # No need to preprocess the o_2 and g_2 since this is only used for stats
-
             self.o_stats.update(o)
             self.g_stats.update(g)
 
@@ -114,17 +113,15 @@ class Policy:
             self.g_stats.recompute_stats()
 
     def train(self):
-        batch_size = 256
-        batch = self.buffer.sample(batch_size)
+        batch = self.buffer.sample(self.train_batch_size)
         
-        # preprocessing of obs and goal
-        o, g = self.preprocess_og(batch['o'], batch['g'])
+        o, g = self.preprocess_og(batch['o'], batch['ag'], batch['g'])
         o = self.o_stats.normalize(o)
         g = self.g_stats.normalize(g)
         obs = self.append_goal(o, g)
         obs = torch.from_numpy(obs).float().to(self.device)
 
-        o_2, g_2 = self.preprocess_og(batch['o_2'], batch['g']) 
+        o_2, g_2 = self.preprocess_og(batch['o_2'], batch['ag_2'], batch['g']) 
         o_2 = self.o_stats.normalize(o_2)
         g_2 = self.g_stats.normalize(g_2)
         obs_2 = self.append_goal(o_2, g_2)
@@ -135,9 +132,10 @@ class Policy:
 
         with torch.no_grad():
             act_2 = self.target_actor(obs_2)
-            # action is saturating to -1 or 1
             next_qsa = self.target_critic(obs_2, act_2).squeeze()
             target_q = rew + self.gamma * next_qsa
+            clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
+            target_q = np.clip(target_q, *clip_range)
 
         self.optim_critic.zero_grad()
         main_q = self.main_critic(obs, act).squeeze()
@@ -158,7 +156,7 @@ class Policy:
         policy_loss.backward()
         self.optim_actor.step()
 
-        self.update_target_net()
+        # self.update_target_net()
         return cr_loss.item(), policy_loss.item()
 
     def logs(self):
@@ -168,3 +166,16 @@ class Policy:
         logs += [('stats_g/mean', np.mean(self.g_stats.mean))]
         logs += [('stats_g/std', np.mean(self.g_stats.std))]
         return logs
+
+    def set_train_mode(self):
+        self.main_actor.train()
+        self.main_critic.train()
+        self.target_actor.train()
+        self.target_critic.train()
+
+    def set_eval_mode(self):
+        self.main_actor.eval()
+        self.main_critic.eval()
+        self.target_actor.eval()
+        self.target_critic.eval()
+        

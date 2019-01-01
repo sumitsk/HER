@@ -41,24 +41,25 @@ if __name__ == '__main__':
     evaluator = Learner(policy, evaluator_params)
 
     n_test_rollouts = 10
-    for epoch in range(args.n_epochs):
+    for epoch in range(params['n_epochs']):
         trainer.clear_history()
-        for _ in range(args.n_cycles):
+        policy.set_train_mode()
+        for _ in range(params['n_cycles']):
             episode = trainer.generate_rollouts()
             policy.store_episode(episode)
 
-            for _ in range(args.n_batches):
+            for _ in range(params['n_batches']):
                 critic_loss, policy_loss = policy.train()
             print(critic_loss, policy_loss)
 
-            # policy.update_target_net()
+            policy.update_target_net()
 
         evaluator.clear_history()
+        policy.set_eval_mode()
         for _ in range(n_test_rollouts):
             evaluator.generate_rollouts()
 
         # log stuffs
-        ipdb.set_trace()
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, val)

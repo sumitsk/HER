@@ -12,37 +12,37 @@ class Learner:
         history_len = 100
         self.success_history = deque(maxlen=history_len)
         self.exploit = params['exploit']
-        self.noise_eps = 0.2 
-        self.random_eps = 0.3 
+        self.noise_eps = 0.2 if not self.exploit else 0
+        self.random_eps = 0.3 if not self.exploit else 0
         self.n_episodes = 0
         env = params['cached_env']
         self.T = env._max_episode_steps
         
     def generate_rollouts(self):
-        o = self.envs.reset()
-        o, g = self.policy.split_obs(o)
-        obs, goals, actions, successes = [], [], [], []
+        obs = self.envs.reset()
+        o, ag, g = self.policy.split_obs(obs)
+        obs, goals, achieved_goals, actions, successes = [], [], [], [], []
 
         for t in range(self.T):
             with torch.no_grad():
-                act = self.policy.get_actions(obs=o,
-                                              goal=g,
-                                              noise_eps=self.noise_eps if not self.exploit else 0,
-                                              random_eps=self.random_eps if not self.exploit else 0)
+                act = self.policy.get_actions(o, ag, g, noise_eps=self.noise_eps, random_eps=self.random_eps)
             # reward will be recomputed while HER sampling
             next_o, _, _, info = self.envs.step(act)
-            next_o, _ = self.policy.split_obs(next_o)
+            next_o, next_ag, _ = self.policy.split_obs(next_o)
             obs.append(o.copy())
+            achieved_goals.append(ag.copy())
             goals.append(g.copy())
             actions.append(act.copy())
             succ = np.reshape([i['is_success'] for i in info], (-1,1))
             successes.append(succ)
             o = next_o.copy()
+            ag = next_ag.copy()
         obs.append(o.copy())
+        achieved_goals.append(ag.copy())
         
         # num_processes x (T+1) x dim
         obs = np.stack(obs, 1)
-        achieved_goals = self.policy.get_achieved_goal(obs)
+        achieved_goals = np.stack(achieved_goals, 1)
 
         # num_processes x T x dim
         goals = np.stack(goals, 1)
