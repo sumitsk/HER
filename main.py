@@ -8,8 +8,8 @@ import utils
 from arguments import get_args
 from learner import Learner
 from policy import Policy
-from baselines import logger
-
+import logger
+from tensorboard_logger import configure, log_value
 import ipdb
 
 
@@ -18,7 +18,8 @@ if __name__ == '__main__':
     logid = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f") if args.logid is None else str(args.logid)
     logdir = os.path.join('save', logid)
     logger.configure(logdir)
-    
+    configure(logdir)
+
     params = vars(args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     params['device'] = device
@@ -44,13 +45,15 @@ if __name__ == '__main__':
     for epoch in range(params['n_epochs']):
         trainer.clear_history()
         policy.set_train_mode()
-        for _ in range(params['n_cycles']):
+        for i in range(params['n_cycles']):
             episode = trainer.generate_rollouts()
             policy.store_episode(episode)
 
             for _ in range(params['n_batches']):
                 critic_loss, policy_loss = policy.train()
-            print(critic_loss, policy_loss)
+            step = epoch+i*params['n_cycles']
+            log_value('critic_loss', critic_loss, step)
+            log_value('policy_loss', policy_loss, step)
 
             policy.update_target_net()
 
@@ -59,15 +62,19 @@ if __name__ == '__main__':
         for _ in range(n_test_rollouts):
             evaluator.generate_rollouts()
 
-        # log stuffs
+        # log statistics
         logger.record_tabular('epoch', epoch)
-        for key, val in evaluator.logs('test'):
-            logger.record_tabular(key, val)
-        for key, val in trainer.logs('train'):
-            logger.record_tabular(key, val)
+        test_stats = evaluator.logs()
+        for key, val in test_stats.items():
+            logger.record_tabular('test/'+key, val)
+        train_stats = trainer.logs()
+        for key, val in train_stats.items():
+            logger.record_tabular('train/'+key, val)
         for key, val in policy.logs():
             logger.record_tabular(key, val)
 
         logger.dump_tabular()
+        log_value('train_success_rate', train_stats['success_rate'], epoch)
+        log_value('test_success_rate', test_stats['success_rate'], epoch)
 
 

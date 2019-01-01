@@ -60,11 +60,8 @@ class Learner:
     def clear_history(self):
         self.success_history.clear()
 
-    def logs(self, prefix='train'):
-        assert prefix in ['train', 'test']
-        logs = []
-        logs += [('success_rate', np.mean(self.success_history))]
-        logs += [('episode', self.n_episodes)]
-        return [(prefix + '/' + key, val) for key, val in logs]
+    def logs(self):
+        logs = {'success_rate': np.mean(self.success_history), 'episode': self.n_episodes}
+        return logs
 
             

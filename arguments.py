@@ -4,7 +4,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='RL')
     
     # environment
-    parser.add_argument('--env-name', default='FetchReach-v1', help='environment to train on (default: simple_spread)')
+    parser.add_argument('--env-name', default='FetchReach-v1', help='gym environment')
     parser.add_argument('--render', action='store_true')
     parser.add_argument('--relative-goal', action='store_true')
 
