@@ -14,6 +14,8 @@ def get_args():
     parser.add_argument('--n-epochs', type=int, default=50)
     parser.add_argument('--n-cycles', type=int, default=10)
     parser.add_argument('--n-batches', type=int, default=40)
+    parser.add_argument('--actor-lr', default=1e-3, type=float)
+    parser.add_argument('--critic-lr', default=1e-3, type=float)
 
     # logging
     parser.add_argument('--logid', default=None, type=int, help='unique id for each run (default: date_time)')

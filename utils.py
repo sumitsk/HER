@@ -45,6 +45,10 @@ def make_parallel_envs(env_name, seed, num_processes):
     return envs
 
 
+def get_cached_env(env_name):
+    return gym.make(env_name)
+
+    
 def get_buffer_shapes(env, T):
     env.reset()
     obs, _, _, info = env.step(env.action_space.sample())
