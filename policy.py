@@ -131,7 +131,7 @@ class Policy:
             next_qsa = self.target_critic(obs_2, act_2).squeeze()
             target_q = rew + self.gamma * next_qsa
             clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
-            target_q = np.clip(target_q, *clip_range)
+            target_q = torch.clamp(target_q, *clip_range)
 
         self.optim_critic.zero_grad()
         main_q = self.main_critic(obs, act).squeeze()

@@ -34,7 +34,7 @@ if __name__ == '__main__':
     trainer = Learner(policy, trainer_params)
 
     eval_seed = np.random.randint(0, 100)
-    eval_num_processes = params['num_processes']
+    eval_num_processes = 2
     eval_envs = utils.make_parallel_envs(params['env_name'], eval_seed, eval_num_processes)
     evaluator_params = deepcopy(params)
     evaluator_params['envs'] = eval_envs
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
             for _ in range(params['n_batches']):
                 critic_loss, policy_loss = policy.train()
-            step = epoch+i*params['n_cycles']
+            step = epoch*params['n_cycles']+i
             log_value('critic_loss', critic_loss, step)
             log_value('policy_loss', policy_loss, step)
 
