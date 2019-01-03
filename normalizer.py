@@ -52,8 +52,9 @@ class Normalizer:
 
     def recompute_stats(self):
         self.mean = self.local_sum / self.local_count
-        std = (self.local_sumsq / self.local_count - (self.local_sum / self.local_count)**2)**.5
-        self.std = np.maximum(std, self.min_std)
+        var = self.local_sumsq / self.local_count - (self.local_sum / self.local_count)**2
+        var = np.maximum(self.min_std**2, var)
+        self.std = np.maximum(var**.5, self.min_std)
         self.reset()
 
     def normalize(self, obs):
