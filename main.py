@@ -33,7 +33,7 @@ if __name__ == '__main__':
     trainer = Learner(policy, trainer_params)
 
     eval_seed = np.random.randint(0, 100)
-    eval_num_processes = 2
+    eval_num_processes = params['num_processes']
     eval_envs = utils.make_parallel_envs(params['env_name'], eval_seed, eval_num_processes)
     evaluator_params = deepcopy(params)
     evaluator_params['num_processes'] = eval_num_processes
