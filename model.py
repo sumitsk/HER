@@ -11,8 +11,6 @@ def weights_init(m):
         if m.bias is not None:
             m.bias.data.fill_(0)
 
-EPS = 0.0003
-
 
 class Actor(nn.Module):
     def __init__(self, input_size, out_size, max_u=1.0):
@@ -23,8 +21,7 @@ class Actor(nn.Module):
         self.fc3 = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, out_size)
         self.max_u = max_u
-        # self.apply(weights_init)
-        nn.init.uniform_(self.out.weight.data, a=-EPS, b=EPS)
+        self.apply(weights_init)
 
     def forward(self, s):
         x = F.relu(self.fc1(s))
@@ -41,8 +38,7 @@ class Critic(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, 1)
-        # self.apply(weights_init)
-        nn.init.uniform_(self.out.weight.data, a=-EPS, b=EPS)
+        self.apply(weights_init)
 
     def forward(self, s, a):
         x = torch.cat([s,a], -1)

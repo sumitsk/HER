@@ -5,7 +5,6 @@ from replay_buffer import ReplayBuffer
 from her import HER_sampler
 from normalizer import Normalizer
 import utils
-import ipdb
 
 
 class Policy:
@@ -80,7 +79,6 @@ class Policy:
         return np.split(obs, [self.obs_dim, self.obs_dim+self.goal_dim], -1)
 
     def preprocess_og(self, obs, ag, goal):
-        # subtract achieved goal from desired goal
         if self.relative_goal:
             goal = goal - ag
         obs = np.clip(obs, -self.clip_obs, self.clip_obs)
@@ -88,7 +86,6 @@ class Policy:
         return obs, goal
 
     def update_target_net(self):
-        # soft update or hard update
         utils.soft_update(self.target_critic, self.main_critic, self.tau)
         utils.soft_update(self.target_actor, self.main_actor, self.tau)
 

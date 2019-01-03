@@ -9,7 +9,6 @@ from learner import Learner
 from policy import Policy
 import logger
 from tensorboard_logger import configure, log_value
-import ipdb
 
 
 if __name__ == '__main__':

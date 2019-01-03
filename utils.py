@@ -3,7 +3,6 @@ import shutil
 import sys
 import gym_vecenv
 import gym
-import ipdb
 
 
 def check_logdir(log_dir):

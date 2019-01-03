@@ -1,6 +1,5 @@
 import gym_vecenv
 import numpy as np
-import ipdb
 
 
 class GymNormalizer:
@@ -32,27 +31,27 @@ class Normalizer:
         self.min_std = min_std
         self.size = size
 
-        self.local_sum = np.zeros(self.size, np.float32)
-        self.local_sumsq = np.zeros(self.size, np.float32)
-        self.local_count = 0
+        self.obs_sum = np.zeros(self.size, np.float32)
+        self.obs_sumsq = np.zeros(self.size, np.float32)
+        self.count = 0
     
         self.mean = np.zeros(self.size, np.float32)
         self.std = np.ones(self.size, np.float32)
 
     def update(self, v):
         v = v.reshape(-1, self.size)
-        self.local_sum += v.sum(axis=0)
-        self.local_sumsq += (np.square(v)).sum(axis=0)
-        self.local_count += v.shape[0]
+        self.obs_sum += v.sum(axis=0)
+        self.obs_sumsq += (np.square(v)).sum(axis=0)
+        self.count += v.shape[0]
 
     def reset(self):
-        self.local_count = 0
-        self.local_sum[...] = 0
-        self.local_sumsq[...] = 0
+        self.count = 0
+        self.obs_sum[...] = 0
+        self.obs_sumsq[...] = 0
 
     def recompute_stats(self):
-        self.mean = self.local_sum / self.local_count
-        var = self.local_sumsq / self.local_count - (self.local_sum / self.local_count)**2
+        self.mean = self.obs_sum / self.count
+        var = self.obs_sumsq / self.count - (self.obs_sum / self.count)**2
         var = np.maximum(self.min_std**2, var)
         self.std = np.maximum(var**.5, self.min_std)
         self.reset()
