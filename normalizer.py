@@ -2,7 +2,7 @@ import gym_vecenv
 import numpy as np
 
 
-class GymNormalizer:
+class RMSNormalizer:
     def __init__(self, size, min_std=1e-2, clipob=10.0):
         self.rms = gym_vecenv.RunningMeanStd(shape=size)
         self.clipob = clipob
@@ -14,14 +14,17 @@ class GymNormalizer:
     
     @property
     def std(self):
-        return self.rms.var**.5
+        var = np.maximum(self.min_std**2, self.rms.var)
+        return np.maximum(self.min_std, var**.5)
     
     def update(self, obs):
         self.rms.update(obs)
 
+    def recompute_stats(self):
+        pass
+
     def normalize(self, obs):
-        std = np.maximum(self.std, self.min_std) 
-        obs = np.clip((obs - self.mean) / std, -self.clipob, self.clipob)
+        obs = np.clip((obs - self.mean) / self.std, -self.clipob, self.clipob)
         return obs
 
 

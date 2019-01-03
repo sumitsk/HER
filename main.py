@@ -36,6 +36,7 @@ if __name__ == '__main__':
     eval_num_processes = 2
     eval_envs = utils.make_parallel_envs(params['env_name'], eval_seed, eval_num_processes)
     evaluator_params = deepcopy(params)
+    evaluator_params['num_processes'] = eval_num_processes
     evaluator_params['envs'] = eval_envs
     evaluator_params['exploit'] = True
     evaluator = Learner(policy, evaluator_params)
