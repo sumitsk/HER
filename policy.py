@@ -21,6 +21,7 @@ class Policy:
         self.clip_pos_returns = True
         self.clip_return = self.T
         self.train_batch_size = 256
+        self.max_grad_norm = 0.5
         
         self.device = params['device']
         buffer_shapes = utils.get_buffer_shapes(env, self.T)
@@ -29,19 +30,19 @@ class Policy:
         input_size = self.obs_dim + self.goal_dim
         self.action_dim = env.action_space.shape[0]
 
-        self.main_actor = Actor(input_size, self.action_dim, self.max_u).to(self.device)
+        self.actor = Actor(input_size, self.action_dim, self.max_u).to(self.device)
         self.target_actor = Actor(input_size, self.action_dim, self.max_u).to(self.device)
-        self.main_critic = Critic(input_size+self.action_dim).to(self.device)
+        self.critic = Critic(input_size+self.action_dim).to(self.device)
         self.target_critic = Critic(input_size+self.action_dim).to(self.device)
-        utils.hard_update(self.target_actor, self.main_actor)
-        utils.hard_update(self.target_critic, self.main_critic)
+        utils.hard_update(self.target_actor, self.actor)
+        utils.hard_update(self.target_critic, self.critic)
 
         self.norm_clip = 5.0
         self.o_stats = Normalizer(self.obs_dim, clipob=self.norm_clip)
         self.g_stats = Normalizer(self.goal_dim, clipob=self.norm_clip)
 
-        self.optim_actor = torch.optim.Adam(self.main_actor.parameters(), params['actor_lr'])
-        self.optim_critic = torch.optim.Adam(self.main_critic.parameters(), params['critic_lr'])
+        self.optim_actor = torch.optim.Adam(self.actor.parameters(), params['actor_lr'])
+        self.optim_critic = torch.optim.Adam(self.critic.parameters(), params['critic_lr'])
         self.critic_loss = torch.nn.MSELoss()
         
         def reward_fun(ag_2, g, info):
@@ -57,7 +58,7 @@ class Policy:
         g = self.g_stats.normalize(g)
         inp = self.append_goal(o, g)
         inp = torch.from_numpy(inp).float().to(self.device)
-        u = self.main_actor(inp)
+        u = self.actor(inp)
         u = u.cpu().numpy()
 
         # Gaussian noise
@@ -86,8 +87,8 @@ class Policy:
         return obs, goal
 
     def update_target_net(self):
-        utils.soft_update(self.target_critic, self.main_critic, self.tau)
-        utils.soft_update(self.target_actor, self.main_actor, self.tau)
+        utils.soft_update(self.target_critic, self.critic, self.tau)
+        utils.soft_update(self.target_actor, self.actor, self.tau)
 
     def store_episode(self, episode_batch, update_stats=True):
         self.buffer.store_episode(episode_batch)
@@ -131,22 +132,20 @@ class Policy:
             target_q = torch.clamp(target_q, *clip_range)
 
         self.optim_critic.zero_grad()
-        main_q = self.main_critic(obs, act).squeeze()
+        main_q = self.critic(obs, act).squeeze()
         # with torch.no_grad():
         #     td_error = target_q - q
         cr_loss = self.critic_loss(main_q, target_q)
         cr_loss.backward()
-        # TODO: gradient clipping
-        # torch.nn.utils.clip_grad_norm_(self.main_critic.parameters(), self.max_grad_norm)
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
         self.optim_critic.step()
 
         self.optim_actor.zero_grad()
-        pred_act = self.main_actor(obs)
-        policy_loss = -self.main_critic(obs, pred_act).mean()
+        pred_act = self.actor(obs)
+        policy_loss = -self.critic(obs, pred_act).mean()
         policy_loss += self.action_l2 * ((pred_act/self.max_u)**2).mean()
-
-        # torch.nn.utils.clip_grad_norm_(self.main_actor.parameters(), self.max_grad_norm)
         policy_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
         self.optim_actor.step()
 
         return cr_loss.item(), policy_loss.item()
@@ -160,20 +159,20 @@ class Policy:
         return logs
 
     def set_train_mode(self):
-        self.main_actor.train()
-        self.main_critic.train()
+        self.actor.train()
+        self.critic.train()
         self.target_actor.train()
         self.target_critic.train()
 
     def set_eval_mode(self):
-        self.main_actor.eval()
-        self.main_critic.eval()
+        self.actor.eval()
+        self.critic.eval()
         self.target_actor.eval()
         self.target_critic.eval()
 
     def save(self, epoch, filename):
-        checkpoint = {'actor': self.main_actor.state_dict(),
-                      'critic': self.main_critic.state_dict(),
+        checkpoint = {'actor': self.actor.state_dict(),
+                      'critic': self.critic.state_dict(),
                       'optim_actor': self.optim_actor.state_dict(),
                       'optim_critic': self.optim_critic.state_dict(),
                       'epoch': epoch

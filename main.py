@@ -47,6 +47,7 @@ if __name__ == '__main__':
     best_policy_path = os.path.join(logger.get_dir(), 'policy_best.pt')
     periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pt')
 
+    n_batches = trainer_params['n_batches']*trainer_params['num_processes']
     for epoch in range(params['n_epochs']):
         trainer.clear_history()
         policy.set_train_mode()
@@ -54,7 +55,7 @@ if __name__ == '__main__':
             episode = trainer.generate_rollouts()
             policy.store_episode(episode)
 
-            for _ in range(params['n_batches']):
+            for _ in range(n_batches):
                 critic_loss, policy_loss = policy.train()
             step = epoch*params['n_cycles']+i
             log_value('critic_loss', critic_loss, step)

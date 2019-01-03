@@ -34,7 +34,7 @@ class Learner:
             goals.append(g.copy())
             actions.append(act.copy())
             succ = np.reshape([i['is_success'] for i in info], (-1,1))
-            successes.append(succ)
+            successes.append(succ.copy())
             o = next_o.copy()
             ag = next_ag.copy()
         obs.append(o.copy())
