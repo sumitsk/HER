@@ -61,7 +61,7 @@ if __name__ == '__main__':
             log_value('critic_loss', critic_loss, step)
             log_value('policy_loss', policy_loss, step)
 
-            policy.update_target_net()
+            # policy.update_target_net()
 
         evaluator.clear_history()
         policy.set_eval_mode()

@@ -17,7 +17,7 @@ class Policy:
         self.action_l2 = 1.0 
         self.clip_obs = 200.0
         self.gamma = 1 - 1.0/self.T
-        self.tau = 0.05
+        self.tau = 0.001
         self.clip_pos_returns = True
         self.clip_return = self.T
         self.train_batch_size = 256
@@ -148,6 +148,7 @@ class Policy:
         torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
         self.optim_actor.step()
 
+        self.update_target_net()
         return cr_loss.item(), policy_loss.item()
 
     def logs(self):
